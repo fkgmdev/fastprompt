@@ -1,6 +1,8 @@
 #![allow(unused)]
 use chrono::Local;
 use tokio::process::Command;
+mod raw_colors;
+use raw_colors::{Color, color};
 
 async fn get_user() -> String {
     match Command::new("whoami").output().await {
@@ -54,13 +56,33 @@ async fn main() {
 }
 
 fn make_prompt(user: &str, cwd: &str, rust: Option<String>, time: String) -> String {
+    let reset = "\x1b[0m";
     if let Some(rust) = rust {
         format!(
-            "\n\x1b[0;31m\x1b[0;1;30;41m{user} \x1b[0;31;43m\x1b[0;1;30;43m  {rust} \x1b[0;33;42m\x1b[0;1;30;42m {cwd} \x1b[0;32;44m \x1b[0;30;44m \x1b[1m{time}\x1b[0;34m\x1b[0m\x1b[1;32m ❯ \x1b[0m"
+            "\n{}{}{user} {}{}  {rust} {}{} {cwd} {}{}   {time}{} {}❯ {reset}",
+            color(Color::Red, Color::Default, false),
+            color(Color::Black, Color::Red, true),
+            color(Color::Red, Color::Yellow, false),
+            color(Color::Black, Color::Yellow, false),
+            color(Color::Yellow, Color::Green, false),
+            color(Color::Black, Color::Green, false),
+            color(Color::Green, Color::Blue, false),
+            color(Color::Black, Color::Blue, true),
+            color(Color::Blue, Color::Default, false),
+            color(Color::Green, Color::Default, true),
         )
     } else {
         format!(
-            "\n\x1b[0;31m\x1b[0;1;30;41m{user} \x1b[0;31;43m\x1b[0;33;42m\x1b[0;1;30;42m {cwd} \x1b[0;32;44m \x1b[0;30;44m \x1b[1m{time}\x1b[0;34m\x1b[0m\x1b[1;32m ❯ \x1b[0m"
+            "\n{}{}{user} {}{}{} {cwd} {}{}   {time}{} {}❯ {reset}",
+            color(Color::Red, Color::Default, false),
+            color(Color::Black, Color::Red, true),
+            color(Color::Red, Color::Yellow, false),
+            color(Color::Yellow, Color::Green, false),
+            color(Color::Black, Color::Green, false),
+            color(Color::Green, Color::Blue, false),
+            color(Color::Black, Color::Blue, true),
+            color(Color::Blue, Color::Default, false),
+            color(Color::Green, Color::Default, true),
         )
     }
 }
