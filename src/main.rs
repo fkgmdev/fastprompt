@@ -1,8 +1,7 @@
 #![allow(unused)]
 use chrono::Local;
 use tokio::process::Command;
-mod raw_colors;
-use raw_colors::{Color, color};
+mod format;
 
 async fn get_user() -> String {
     match Command::new("whoami").output().await {
@@ -30,12 +29,12 @@ async fn get_rust() -> Option<String> {
             match Command::new("rustc").arg("--version").output().await {
                 Ok(output) => {
                     return Some(
-                        String::from_utf8_lossy(&output.stdout)
-                            .to_string()
-                            .split_whitespace()
-                            .nth(1)
-                            .unwrap_or("rust")
-                            .to_string(),
+                        " ".to_string()
+                            + String::from_utf8_lossy(&output.stdout)
+                                .to_string()
+                                .split_whitespace()
+                                .nth(1)
+                                .unwrap_or("rust"),
                     );
                 }
                 Err(_) => return None,
@@ -49,40 +48,29 @@ async fn get_rust() -> Option<String> {
 }
 #[tokio::main]
 async fn main() {
-    let (user, rust) = tokio::join!(get_user(), get_rust());
+    let (user, rust, format_str) = tokio::join!(get_user(), get_rust(), format::config());
     let cwd = get_cwd(&user);
     let time = Local::now().format("%H:%M").to_string();
-    println!("{}", make_prompt(&user, &cwd, rust, time));
+    println!("{}", make_prompt(&user, &cwd, rust, &time, &format_str));
 }
 
-fn make_prompt(user: &str, cwd: &str, rust: Option<String>, time: String) -> String {
-    let reset = "\x1b[0m";
+fn make_prompt(user: &str, cwd: &str, rust: Option<String>, time: &str, format: &str) -> String {
+    // let reset = "\x1b[0m";
     if let Some(rust) = rust {
-        format!(
-            "\n{}{}{user} {}{}  {rust} {}{} {cwd} {}{}   {time}{} {}❯ {reset}",
-            color(Color::Red, Color::Default, false),
-            color(Color::Black, Color::Red, true),
-            color(Color::Red, Color::Yellow, false),
-            color(Color::Black, Color::Yellow, false),
-            color(Color::Yellow, Color::Green, false),
-            color(Color::Black, Color::Green, false),
-            color(Color::Green, Color::Blue, false),
-            color(Color::Black, Color::Blue, true),
-            color(Color::Blue, Color::Default, false),
-            color(Color::Green, Color::Default, true),
-        )
+        format
+            .replace("$space", " ")
+            .replace("$user", user)
+            .replace("$rust", &rust)
+            .replace("$time", time)
+            .replace("$cwd", cwd)
+            .replace("$newline", "\n")
     } else {
-        format!(
-            "\n{}{}{user} {}{}{} {cwd} {}{}   {time}{} {}❯ {reset}",
-            color(Color::Red, Color::Default, false),
-            color(Color::Black, Color::Red, true),
-            color(Color::Red, Color::Yellow, false),
-            color(Color::Yellow, Color::Green, false),
-            color(Color::Black, Color::Green, false),
-            color(Color::Green, Color::Blue, false),
-            color(Color::Black, Color::Blue, true),
-            color(Color::Blue, Color::Default, false),
-            color(Color::Green, Color::Default, true),
-        )
+        format
+            .replace("$space", " ")
+            .replace("$user", user)
+            .replace("$rust", "")
+            .replace("$time", time)
+            .replace("$cwd", cwd)
+            .replace("$newline", "\n")
     }
 }
