@@ -1,4 +1,5 @@
 #![allow(unused)]
+use chrono::Local;
 use tokio::process::Command;
 
 async fn get_user() -> String {
@@ -48,18 +49,18 @@ async fn get_rust() -> Option<String> {
 async fn main() {
     let (user, rust) = tokio::join!(get_user(), get_rust());
     let cwd = get_cwd(&user);
-    println!("{}", make_prompt(&user, &cwd, rust));
+    let time = Local::now().format("%H:%M").to_string();
+    println!("{}", make_prompt(&user, &cwd, rust, time));
 }
 
-fn make_prompt(user: &str, cwd: &str, rust: Option<String>) -> String {
-    let black_on_red = "\x1b[1;30;41m";
-    let black_on_green = "\x1b[0;30;42m";
-    let reset = "\x1b[0m";
+fn make_prompt(user: &str, cwd: &str, rust: Option<String>, time: String) -> String {
     if let Some(rust) = rust {
         format!(
-            "\x1b[32m{black_on_green}{user}{reset}\x1b[32;41m{reset}{black_on_red} {rust}{reset} {cwd} >"
+            "\x1b[0;31m\x1b[0;30;41m{user} \x1b[0;31;43m\x1b[0;30;43m  {rust} \x1b[0;33;42m\x1b[0;30;42m {cwd} \x1b[0;32;44m \x1b[0;30;44m{time}\x1b[0;34m\x1b[0m >"
         )
     } else {
-        format!("{black_on_green}{user} {cwd} >{reset}")
+        format!(
+            "\x1b[0;31m\x1b[0;30;41m{user} \x1b[0;31;42m\x1b[0;30;42m {cwd} \x1b[0;32;44m \x1b[0;30;44m{time}\x1b[0;34m\x1b[0m >"
+        )
     }
 }
