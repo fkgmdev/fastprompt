@@ -56,11 +56,11 @@ async fn main() {
 fn make_prompt(user: &str, cwd: &str, rust: Option<String>, time: String) -> String {
     if let Some(rust) = rust {
         format!(
-            "\x1b[0;31m\x1b[0;30;41m{user} \x1b[0;31;43m\x1b[0;30;43m  {rust} \x1b[0;33;42m\x1b[0;30;42m {cwd} \x1b[0;32;44m \x1b[0;30;44m{time}\x1b[0;34m\x1b[0m >"
+            "\n\x1b[0;31m\x1b[0;1;30;41m{user} \x1b[0;31;43m\x1b[0;1;30;43m  {rust} \x1b[0;33;42m\x1b[0;1;30;42m {cwd} \x1b[0;32;44m \x1b[0;30;44m \x1b[1m{time}\x1b[0;34m\x1b[0m\x1b[1;32m ❯ \x1b[0m"
         )
     } else {
         format!(
-            "\x1b[0;31m\x1b[0;30;41m{user} \x1b[0;31;42m\x1b[0;30;42m {cwd} \x1b[0;32;44m \x1b[0;30;44m{time}\x1b[0;34m\x1b[0m >"
+            "\n\x1b[0;31m\x1b[0;1;30;41m{user} \x1b[0;31;43m\x1b[0;33;42m\x1b[0;1;30;42m {cwd} \x1b[0;32;44m \x1b[0;30;44m \x1b[1m{time}\x1b[0;34m\x1b[0m\x1b[1;32m ❯ \x1b[0m"
         )
     }
 }
