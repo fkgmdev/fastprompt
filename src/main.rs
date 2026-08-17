@@ -65,8 +65,13 @@ async fn get_os() -> String {
 }
 #[tokio::main]
 async fn main() {
-    let (raw_config, user, rust, os) =
-        tokio::join!(format::read_config(), get_user(), get_rust(), get_os());
+    let (raw_config, colors, user, rust, os) = tokio::join!(
+        format::read_config(),
+        format::read_colors(),
+        get_user(),
+        get_rust(),
+        get_os()
+    );
     let cwd = get_cwd(&user);
     let time = Local::now().format("%H:%M").to_string();
 
@@ -76,7 +81,7 @@ async fn main() {
     }
 
     let processed = format::process_conditionals(&raw_config, &active);
-    let colored = format::render(&processed);
+    let colored = format::render(&processed, &colors);
     println!("{}", make_prompt(&user, &cwd, rust, &time, &colored, &os));
 }
 
