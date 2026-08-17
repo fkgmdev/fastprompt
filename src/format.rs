@@ -59,6 +59,10 @@ pub async fn config() -> String {
         } else {
             false
         };
+        if args.len() == 1 {
+            format.push(args[0].to_string());
+            continue;
+        }
         let fg_color = match args[1] {
             "black" => Color::Black,
             "red" => Color::Red,
