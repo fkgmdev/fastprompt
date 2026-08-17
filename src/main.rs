@@ -1,5 +1,6 @@
 #![allow(unused)]
 use chrono::Local;
+use std::collections::HashSet;
 use tokio::{fs::read_to_string, process::Command};
 mod format;
 
@@ -64,14 +65,19 @@ async fn get_os() -> String {
 }
 #[tokio::main]
 async fn main() {
-    let (user, rust, format_str, os) =
-        tokio::join!(get_user(), get_rust(), format::config(), get_os());
+    let (raw_config, user, rust, os) =
+        tokio::join!(format::read_config(), get_user(), get_rust(), get_os());
     let cwd = get_cwd(&user);
     let time = Local::now().format("%H:%M").to_string();
-    println!(
-        "{}",
-        make_prompt(&user, &cwd, rust, &time, &format_str, &os)
-    );
+
+    let mut active = HashSet::from(["user", "cwd", "time", "os"]);
+    if rust.is_some() {
+        active.insert("rust");
+    }
+
+    let processed = format::process_conditionals(&raw_config, &active);
+    let colored = format::render(&processed);
+    println!("{}", make_prompt(&user, &cwd, rust, &time, &colored, &os));
 }
 
 fn make_prompt(
@@ -82,24 +88,13 @@ fn make_prompt(
     format: &str,
     os: &str,
 ) -> String {
-    // let reset = "\x1b[0m";
-    if let Some(rust) = rust {
-        format
-            .replace("$space", " ")
-            .replace("$user", user)
-            .replace("$rust", &rust)
-            .replace("$time", time)
-            .replace("$cwd", cwd)
-            .replace("$newline", "\n")
-            .replace("$os", os)
-    } else {
-        format
-            .replace("$space", " ")
-            .replace("$user", user)
-            .replace("$rust", "")
-            .replace("$time", time)
-            .replace("$cwd", cwd)
-            .replace("$newline", "\n")
-            .replace("$os", os)
-    }
+    let rust_str = rust.unwrap_or_default();
+    format
+        .replace("$space", " ")
+        .replace("$user", user)
+        .replace("$rust", &rust_str)
+        .replace("$time", time)
+        .replace("$cwd", cwd)
+        .replace("$newline", "\n")
+        .replace("$os", os)
 }

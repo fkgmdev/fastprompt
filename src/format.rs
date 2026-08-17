@@ -46,23 +46,36 @@ pub fn color(text: &str, fg: Color, bg: Color, bold: bool) -> String {
     sequence.join("")
 }
 
-pub async fn config() -> String {
-    let config = read_to_string("/home/yamana/.config/fastprompt/fastprompt.config")
+pub async fn read_config() -> String {
+    read_to_string("/home/yamana/.config/fastprompt/fastprompt.config")
         .await
-        .unwrap();
+        .unwrap()
+}
 
-    let mut format = Vec::new();
-    for line in config.lines() {
-        let args: Vec<&str> = line.split(';').collect();
-        let bold = if args.len() == 4 && args[3] == "bold" {
-            true
-        } else {
-            false
-        };
-        if args.len() == 1 {
-            format.push(args[0].to_string());
+pub fn process_conditionals(raw: &str, active_vars: &std::collections::HashSet<&str>) -> String {
+    let mut out = Vec::new();
+    let mut skip = false;
+    for line in raw.lines() {
+        if let Some(var) = line.strip_prefix('?') {
+            if var.is_empty() {
+                skip = false;
+                continue;
+            }
+            skip = !active_vars.contains(var);
             continue;
         }
+        if !skip {
+            out.push(line);
+        }
+    }
+    out.join("\n")
+}
+
+pub fn render(raw: &str) -> String {
+    let mut format = Vec::new();
+    for line in raw.lines() {
+        let args: Vec<&str> = line.split(';').collect();
+        let bold = args.len() == 4 && args[3] == "bold";
         let fg_color = match args[1] {
             "black" => Color::Black,
             "red" => Color::Red,
@@ -87,9 +100,7 @@ pub async fn config() -> String {
             "default" => Color::Default,
             _ => Color::Default,
         };
-
         format.push(color(args[0], fg_color, bg_color, bold));
     }
-
     format.join("")
 }
