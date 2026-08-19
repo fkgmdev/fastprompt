@@ -1,6 +1,6 @@
 #![allow(unused)]
 use chrono::Local;
-use std::collections::HashSet;
+use std::{collections::HashSet, os::linux::raw::stat};
 use tokio::{fs::read_to_string, process::Command};
 mod format;
 
@@ -63,14 +63,58 @@ async fn get_os() -> String {
         _ => "".to_string(),
     }
 }
+#[derive(Debug, PartialEq)]
+enum Git {
+    Modified,
+    Staged,
+    //Committed,
+    Clean,
+}
+async fn get_git() -> Option<Git> {
+    let mut current = std::env::current_dir().unwrap();
+    loop {
+        if current.join(".git").exists() {
+            if let Ok(status_str) = Command::new("git")
+                .args(&["status", "--porcelain"])
+                .output()
+                .await
+            {
+                if String::from_utf8_lossy(&status_str.stdout)
+                    .trim()
+                    .is_empty()
+                {
+                    return Some(Git::Clean);
+                }
+                for line in String::from_utf8_lossy(&status_str.stdout).lines() {
+                    if line.trim().starts_with("M")
+                        || line.trim().starts_with("A")
+                        || line.trim().starts_with("D")
+                    {
+                        return Some(Git::Staged);
+                    } else if line.trim().starts_with(" ") {
+                        return Some(Git::Modified);
+                    }
+                }
+                return None;
+            } else {
+                return None;
+            }
+        }
+        if !current.pop() {
+            break;
+        }
+    }
+    None
+}
 #[tokio::main]
 async fn main() {
-    let (raw_config, colors, user, rust, os) = tokio::join!(
+    let (raw_config, colors, user, rust, os, git) = tokio::join!(
         format::read_config(),
         format::read_colors(),
         get_user(),
         get_rust(),
-        get_os()
+        get_os(),
+        get_git()
     );
     let cwd = get_cwd(&user);
     let time = Local::now().format("%H:%M").to_string();
@@ -79,10 +123,16 @@ async fn main() {
     if rust.is_some() {
         active.insert("rust");
     }
+    if git.is_some() {
+        active.insert("git");
+    }
 
     let processed = format::process_conditionals(&raw_config, &active);
     let colored = format::render(&processed, &colors);
-    println!("{}", make_prompt(&user, &cwd, rust, &time, &colored, &os));
+    println!(
+        "{}",
+        make_prompt(&user, &cwd, rust, &time, &colored, &os, git)
+    );
 }
 
 fn make_prompt(
@@ -92,8 +142,18 @@ fn make_prompt(
     time: &str,
     format: &str,
     os: &str,
+    git: Option<Git>,
 ) -> String {
     let rust_str = rust.unwrap_or_default();
+    let git_str = if let Some(git_status) = git {
+        match git_status {
+            Git::Modified => "Modified",
+            Git::Staged => "Staged",
+            Git::Clean => "Clean",
+        }
+    } else {
+        ":/"
+    };
     format
         .replace("$space", " ")
         .replace("$user", user)
@@ -102,4 +162,5 @@ fn make_prompt(
         .replace("$cwd", cwd)
         .replace("$newline", "\n")
         .replace("$os", os)
+        .replace("$git", git_str)
 }
