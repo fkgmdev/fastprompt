@@ -65,15 +65,23 @@ async fn get_os() -> String {
 }
 #[derive(Debug, PartialEq)]
 enum Git {
-    Modified,
-    Staged,
+    Modified(String),
+    Staged(String),
     //Committed,
-    Clean,
+    Clean(String),
 }
 async fn get_git() -> Option<Git> {
     let mut current = std::env::current_dir().unwrap();
     loop {
         if current.join(".git").exists() {
+            let branch = read_to_string(current.join(".git/HEAD"))
+                .await
+                .unwrap_or("unknown/unknown".to_string())
+                .split("/")
+                .last()
+                .unwrap_or("unknown")
+                .trim()
+                .to_string();
             if let Ok(status_str) = Command::new("git")
                 .args(&["status", "--porcelain"])
                 .output()
@@ -83,16 +91,16 @@ async fn get_git() -> Option<Git> {
                     .trim()
                     .is_empty()
                 {
-                    return Some(Git::Clean);
+                    return Some(Git::Clean(branch));
                 }
                 for line in String::from_utf8_lossy(&status_str.stdout).lines() {
                     if line.trim().starts_with("M")
                         || line.trim().starts_with("A")
                         || line.trim().starts_with("D")
                     {
-                        return Some(Git::Staged);
+                        return Some(Git::Staged(branch));
                     } else if line.trim().starts_with(" ") {
-                        return Some(Git::Modified);
+                        return Some(Git::Modified(branch));
                     }
                 }
                 return None;
@@ -145,14 +153,14 @@ fn make_prompt(
     git: Option<Git>,
 ) -> String {
     let rust_str = rust.unwrap_or_default();
-    let git_str = if let Some(git_status) = git {
+    let (git_str, branch) = if let Some(git_status) = git {
         match git_status {
-            Git::Modified => "Modified",
-            Git::Staged => "Staged",
-            Git::Clean => "Clean",
+            Git::Modified(branch) => ("!", branch),
+            Git::Staged(branch) => ("+", branch),
+            Git::Clean(branch) => ("✓", branch),
         }
     } else {
-        ":/"
+        ("?", "unknown".to_string())
     };
     format
         .replace("$space", " ")
@@ -162,5 +170,6 @@ fn make_prompt(
         .replace("$cwd", cwd)
         .replace("$newline", "\n")
         .replace("$os", os)
-        .replace("$git", git_str)
+        .replace("$gitstatus", git_str)
+        .replace("$gitbranch", &branch)
 }
